@@ -62,6 +62,16 @@ class FirebaseRepository(
             .child("users").child(userId).child("online").setValue(online).await()
     }
 
+    suspend fun updateFcmToken(userId: String, roomId: String?, token: String) = withContext(ioDispatcher) {
+        if (token.isBlank()) return@withContext
+
+        database.reference.child("users").child(userId).child("fcmToken").setValue(token).await()
+        if (!roomId.isNullOrBlank()) {
+            database.reference.child("rooms").child(roomId)
+                .child("users").child(userId).child("fcmToken").setValue(token).await()
+        }
+    }
+
     fun observeRoom(roomId: String, selfUserId: String): Flow<RoomSnapshot> = callbackFlow {
         val roomRef = database.reference.child("rooms").child(roomId)
 
@@ -104,13 +114,14 @@ class FirebaseRepository(
         awaitClose { roomRef.removeEventListener(listener) }
     }
 
-    suspend fun sendMessage(roomId: String, senderId: String, text: String): String = withContext(ioDispatcher) {
+    suspend fun sendMessage(roomId: String, senderId: String, senderName: String, text: String): String = withContext(ioDispatcher) {
         val msgRef = database.reference.child("rooms").child(roomId).child("messages").push()
         val msgId = msgRef.key.orEmpty()
 
         msgRef.setValue(
             mapOf(
                 "senderId" to senderId,
+                "senderName" to senderName,
                 "text" to text,
                 "timestamp" to System.currentTimeMillis()
             )
@@ -118,8 +129,8 @@ class FirebaseRepository(
         msgId
     }
 
-    suspend fun applyGrowth(roomId: String, userId: String, mode: GrowthMode, grow: Boolean) = withContext(ioDispatcher) {
-        val userRef = database.reference.child("rooms").child(roomId).child("users").child(userId)
+    suspend fun applyGrowth(roomId: String, targetUserId: String, mode: GrowthMode, grow: Boolean) = withContext(ioDispatcher) {
+        val userRef = database.reference.child("rooms").child(roomId).child("users").child(targetUserId)
         val currentSizeRaw = userRef.child("size").get().await().getValue(String::class.java) ?: "1"
         val current = currentSizeRaw.toBigDecimalOrNull() ?: BigDecimal.ONE
 
@@ -127,7 +138,7 @@ class FirebaseRepository(
         userRef.child("size").setValue(updated.toPlainString()).await()
         userRef.child("mode").setValue(mode.id).await()
 
-        database.reference.child("users").child(userId).updateChildren(
+        database.reference.child("users").child(targetUserId).updateChildren(
             mapOf(
                 "size" to updated.toPlainString(),
                 "mode" to mode.id

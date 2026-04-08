@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +27,7 @@ import com.twinscalev4.data.GrowthMode
 
 @Composable
 fun JoinRoomBlock(
+    suggestedRoomId: String,
     isLoading: Boolean,
     error: String?,
     onJoin: (roomId: String, name: String, sizeMeters: String, mode: GrowthMode) -> Unit
@@ -34,6 +36,10 @@ fun JoinRoomBlock(
     var name by remember { mutableStateOf("") }
     var size by remember { mutableStateOf("1.70") }
     var mode by remember { mutableStateOf(GrowthMode.BALANCED) }
+
+    LaunchedEffect(suggestedRoomId) {
+        if (suggestedRoomId.isNotBlank()) roomId = suggestedRoomId
+    }
 
     Column(
         modifier = Modifier

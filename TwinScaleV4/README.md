@@ -6,7 +6,27 @@
 3. Скачайте `google-services.json` и поместите его в `app/google-services.json`.
 4. Включите Realtime Database (режим Locked, затем настройте правила).
 5. Включите Cloud Messaging.
-6. Для отправки push при новых сообщениях используйте серверный компонент (Cloud Functions / ваш backend), который читает `rooms/{roomId}/messages` и отправляет FCM на токен партнёра.
+6. Разверните Cloud Functions из папки `cloud-functions/`, чтобы пуши отправлялись партнёру при новых сообщениях.
+
+## Realtime Database structure
+```text
+rooms/
+  roomId/
+    users/
+    messages/
+    state/
+users/
+  userId/
+    name
+    size
+    mode
+    fcmToken
+messages/
+  messageId/
+    senderId
+    text
+    timestamp
+```
 
 ## Suggested Realtime Database rules (example)
 ```json
@@ -26,6 +46,13 @@
     }
   }
 }
+```
+
+## Cloud Functions deploy
+```bash
+cd cloud-functions
+npm install
+firebase deploy --only functions
 ```
 
 ## Manual files

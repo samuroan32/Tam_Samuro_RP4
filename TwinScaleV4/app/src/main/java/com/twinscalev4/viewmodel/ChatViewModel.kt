@@ -10,6 +10,7 @@ import com.twinscalev4.data.RoomSnapshot
 import com.twinscalev4.data.UserProfile
 import com.twinscalev4.domain.RoomJoinValidator
 import com.twinscalev4.notification.ChatPresenceManager
+import com.twinscalev4.notification.TokenSyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,7 @@ import java.util.UUID
 
 data class ChatUiState(
     val roomId: String = "",
+    val suggestedRoomId: String = "",
     val selfId: String = "",
     val selfName: String = "",
     val selfSizeRaw: String = "1",
@@ -41,6 +43,11 @@ class ChatViewModel(
 
     fun updateDraft(value: String) {
         _state.update { it.copy(draftMessage = value) }
+    }
+
+    fun setSuggestedRoom(roomId: String?) {
+        if (roomId.isNullOrBlank()) return
+        _state.update { it.copy(suggestedRoomId = roomId.trim()) }
     }
 
     fun joinRoom(roomId: String, name: String, sizeMeters: String, mode: GrowthMode) {
@@ -86,6 +93,12 @@ class ChatViewModel(
                 return@launch
             }
 
+            TokenSyncManager.updateSession(
+                userId = userId,
+                roomId = roomId.trim(),
+                userName = name.trim()
+            )
+
             _state.update {
                 it.copy(
                     roomId = roomId.trim(),
@@ -129,12 +142,13 @@ class ChatViewModel(
     fun sendMessage() {
         val roomId = state.value.roomId
         val selfId = state.value.selfId
+        val selfName = state.value.selfName
         val text = state.value.draftMessage.trim()
         if (roomId.isBlank() || selfId.isBlank() || text.isBlank()) return
 
         viewModelScope.launch {
             runCatching {
-                repository.sendMessage(roomId, selfId, text)
+                repository.sendMessage(roomId, selfId, selfName, text)
             }.onSuccess {
                 _state.update { it.copy(draftMessage = "") }
             }.onFailure {
@@ -158,7 +172,40 @@ class ChatViewModel(
         }
     }
 
+    fun applyPartnerGrowth(grow: Boolean) {
+        val roomId = state.value.roomId
+        val partnerId = state.value.partner?.userId.orEmpty()
+        val mode = state.value.selfMode
+        if (roomId.isBlank() || partnerId.isBlank()) return
+
+        viewModelScope.launch {
+            runCatching {
+                repository.applyGrowth(roomId, partnerId, mode, grow)
+            }.onFailure {
+                _state.update { it.copy(error = "Не удалось изменить размер партнёра") }
+            }
+        }
+    }
+
     fun switchMode(mode: GrowthMode) {
         _state.update { it.copy(selfMode = mode) }
+    }
+
+    fun syncLatestToken() {
+        val roomId = state.value.roomId
+        val userId = state.value.selfId
+        if (roomId.isBlank() || userId.isBlank()) return
+
+        viewModelScope.launch {
+            val token = try {
+                FirebaseMessaging.getInstance().token.await()
+            } catch (_: Exception) {
+                ""
+            }
+            if (token.isBlank()) return@launch
+            runCatching {
+                repository.updateFcmToken(userId = userId, roomId = roomId, token = token)
+            }
+        }
     }
 }

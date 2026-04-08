@@ -1,6 +1,7 @@
 package com.twinscalev4
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
         })
 
         requestNotificationPermissionIfNeeded()
+        handleRoomFromIntent(intent)
 
         setContent {
             TwinScaleTheme {
@@ -49,6 +51,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.syncLatestToken()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleRoomFromIntent(intent)
+    }
+
+    private fun handleRoomFromIntent(intent: Intent?) {
+        val roomId = intent?.getStringExtra("roomId")
+        viewModel.setSuggestedRoom(roomId)
     }
 
     private fun requestNotificationPermissionIfNeeded() {

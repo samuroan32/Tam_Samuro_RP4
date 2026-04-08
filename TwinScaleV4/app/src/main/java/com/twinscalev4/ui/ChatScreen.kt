@@ -63,6 +63,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 
     if (!state.isJoined) {
         JoinRoomBlock(
+            suggestedRoomId = state.suggestedRoomId,
             isLoading = state.isLoading,
             error = state.error,
             onJoin = viewModel::joinRoom
@@ -99,6 +100,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
             onModeSelected = viewModel::switchMode,
             onGrow = { viewModel.applyGrowth(true) },
             onShrink = { viewModel.applyGrowth(false) }
+        )
+
+        PartnerControlPanel(
+            enabled = state.partner != null,
+            partnerName = state.partner?.name ?: "Партнёр",
+            onGrow = { viewModel.applyPartnerGrowth(true) },
+            onShrink = { viewModel.applyPartnerGrowth(false) }
         )
 
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -224,6 +232,51 @@ private fun ControlPanel(
                         .background(MaterialTheme.colorScheme.secondary)
                 ) {
                     Icon(Icons.Rounded.Remove, contentDescription = "Уменьшить", tint = MaterialTheme.colorScheme.onSecondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartnerControlPanel(
+    enabled: Boolean,
+    partnerName: String,
+    onGrow: () -> Unit,
+    onShrink: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Управление размером партнёра", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (enabled) "Изменяйте размер: $partnerName" else "Подключите второго пользователя для управления",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = onGrow,
+                    enabled = enabled,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = "Увеличить партнёра", tint = MaterialTheme.colorScheme.onPrimary)
+                }
+                IconButton(
+                    onClick = onShrink,
+                    enabled = enabled,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (enabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline)
+                ) {
+                    Icon(Icons.Rounded.Remove, contentDescription = "Уменьшить партнёра", tint = MaterialTheme.colorScheme.onSecondary)
                 }
             }
         }
